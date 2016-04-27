@@ -158,7 +158,7 @@ public class XSDMediaTypeHandler extends Handler {
                     }
                 } catch (Exception e) {
                     // Since SchemaValidator.validate method is throwing Exception need to catch it here
-                    throw new RegistryException("Exception occurred while validating the schema", e);
+                    throw new RegistryException("Exception occurred while validating the schema " + sourceURL, e);
                 }
 
                 savedName = processSchemaImport(requestContext, resourcePath, validationInfo);
@@ -173,6 +173,7 @@ public class XSDMediaTypeHandler extends Handler {
                     try {
                         InputStream in = new ByteArrayInputStream((byte[]) resourceContent);
                         if (!disableSchemaValidation) {
+                            // PublicId, SystemId, BaseSystemId and Encoding set to null.
                             validationInfo = SchemaValidator.
                                     validate(new XMLInputSource(null, null, null, in, null));
                         }
@@ -184,16 +185,10 @@ public class XSDMediaTypeHandler extends Handler {
 
                 savedName = processSchemaUpload(requestContext, resourcePath, validationInfo);
             }
-            if (parentPath.endsWith(RegistryConstants.PATH_SEPARATOR)) {
-                requestContext.setActualPath(parentPath + RegistryUtils.getResourceName(savedName));
-            } else {
-                requestContext.setActualPath(parentPath + RegistryConstants.PATH_SEPARATOR +
-                        RegistryUtils.getResourceName(savedName));
-            }
-
             if (StringUtils.isNotBlank(savedName)) {
                 onPutCompleted(resourcePath, Collections.singletonMap(sourceURL, savedName),
                         Collections.<String>emptyList(), requestContext);
+                requestContext.setActualPath(savedName);
             }
 
             requestContext.setProcessingComplete(true);

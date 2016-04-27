@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2014, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
  */
 package org.wso2.carbon.registry.extensions.handlers.utils;
 
-import org.apache.axiom.om.*;
+import org.apache.axiom.om.OMAttribute;
+import org.apache.axiom.om.OMElement;
+import org.apache.axiom.om.OMNamespace;
 import org.apache.axiom.om.impl.builder.StAXOMBuilder;
 import org.apache.axiom.om.util.AXIOMUtil;
 import org.apache.commons.lang.StringUtils;
@@ -26,7 +28,10 @@ import org.jvnet.ws.wadl.ast.InvalidWADLException;
 import org.jvnet.ws.wadl.ast.WadlAstBuilder;
 import org.jvnet.ws.wadl.util.MessageListener;
 import org.w3c.dom.Element;
-import org.wso2.carbon.registry.core.*;
+import org.wso2.carbon.registry.core.Registry;
+import org.wso2.carbon.registry.core.RegistryConstants;
+import org.wso2.carbon.registry.core.Resource;
+import org.wso2.carbon.registry.core.ResourcePath;
 import org.wso2.carbon.registry.core.config.RegistryContext;
 import org.wso2.carbon.registry.core.exceptions.RegistryException;
 import org.wso2.carbon.registry.core.jdbc.Repository;
@@ -44,11 +49,22 @@ import javax.xml.namespace.QName;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
 import java.net.ConnectException;
 import java.net.URI;
 import java.net.URL;
-import java.util.*;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
 
 public class WADLProcessor {
 
@@ -153,21 +169,31 @@ public class WADLProcessor {
             if (!skipValidation) {
                 File tempFile = null;
                 BufferedWriter bufferedWriter = null;
+                FileWriter fileWriter = null;
                 try {
                     tempFile = File.createTempFile(wadlName, null);
-                    bufferedWriter = new BufferedWriter(new FileWriter(tempFile));
+                    fileWriter = new FileWriter(tempFile);
+                    bufferedWriter = new BufferedWriter(fileWriter);
                     bufferedWriter.write(wadlElement.toString());
                     bufferedWriter.flush();
                 } catch (IOException e) {
-                    String msg = "Error occurred while reading the WADL File";
+                    String msg = "Error occurred while reading the WADL "+ wadlName +" file";
                     log.error(msg, e);
                     throw new RegistryException(msg, e);
                 } finally {
+                    if (fileWriter != null){
+                        try {
+                            fileWriter.close();
+                        } catch (IOException e) {
+                            String msg = "Error occurred while closing "+ wadlName +" file writer";
+                            log.warn(msg, e);
+                        }
+                    }
                     if (bufferedWriter != null) {
                         try {
                             bufferedWriter.close();
                         } catch (IOException e) {
-                            String msg = "Error occurred while closing File writer";
+                            String msg = "Error occurred while closing WADL "+ wadlName +" file writer";
                             log.warn(msg, e);
                         }
                     }
@@ -251,10 +277,11 @@ public class WADLProcessor {
         resource.setMediaType(wadlMediaType);
         resource.setProperties(requestContext.getResource().getProperties());
 
-        ByteArrayOutputStream outputStream;
+        ByteArrayOutputStream outputStream = null;
+        InputStream inputStream = null;
         OMElement wadlElement;
         try {
-            InputStream inputStream = new URL(uri).openStream();
+            inputStream = new URL(uri).openStream();
 
             outputStream = new ByteArrayOutputStream();
             int nextChar;
@@ -269,6 +296,23 @@ public class WADLProcessor {
             //This exception is unexpected because the WADL already validated
             throw new RegistryException("Unexpected error occured " +
                     "while reading the WADL at" + uri, e);
+        } finally {
+            if(outputStream != null){
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    String msg = "Error while closing  outputStream";
+                    log.warn(msg);
+                }
+            }
+            if(inputStream != null){
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    String msg = "Error while closing  inputStream";
+                    log.warn(msg);
+                }
+            }
         }
 
         String wadlNamespace = wadlElement.getNamespace().getNamespaceURI();
@@ -350,6 +394,19 @@ public class WADLProcessor {
                 new WadlAstBuilder.SchemaCallback() {
 
                     public void processSchema(InputSource is) {
+                        try {
+
+                        } finally {
+                            if (is != null && is.getByteStream() != null) {
+                                try {
+
+                                    is.getByteStream().close();
+                                } catch (IOException e) {
+                                    String msg = "Error while closing  InputSource";
+                                    log.warn(msg);
+                                }
+                            }
+                        }
                     }
 
                     public void processSchema(String uri, Element node) {
@@ -440,7 +497,7 @@ public class WADLProcessor {
 				wadlElement.getFirstChildWithName(new QName(wadlNamespaceURI, "resources", wadlNamespacePrefix));
 		if (resourcesElement != null) {
 			String endpointUrl = resourcesElement.getAttributeValue(new QName("base"));
-			if (endpointUrl != null) {
+			if (!StringUtils.isBlank(endpointUrl)) {
 				String endpointPath = EndpointUtils.deriveEndpointFromUrl(endpointUrl);
 				String endpointName = EndpointUtils.deriveEndpointNameWithNamespaceFromUrl(endpointUrl);
 				String endpointContent =

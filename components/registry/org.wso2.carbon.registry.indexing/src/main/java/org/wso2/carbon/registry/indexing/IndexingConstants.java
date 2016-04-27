@@ -56,6 +56,7 @@ public final class IndexingConstants {
 
     // New fields are added for indexing
     public static final String FIELD_TAGS = "tags";
+    public static final String FIELD_TAXONOMY = "taxonomy";
     public static final String FIELD_CONTENT = "content";
     public static final String FIELD_CREATED_DATE = "createdDate";
     public static final String FIELD_LAST_UPDATED_DATE = "lastUpdatedDate";
@@ -83,6 +84,7 @@ public final class IndexingConstants {
     public static final String FIELD_RIGHT_PROPERTY_VAL = "rightPropertyValue";
     public static final String FIELD_RIGHT_OP = "rightOp";
     public static final String FIELD_LEFT_OP = "leftOp";
+    public static final String FIELD_ALLOWED_ROLES = "allowedRoles";
 
     //Constants for facet search
     public static final String FACET_FIELD_NAME = "facet.field";
@@ -93,5 +95,8 @@ public final class IndexingConstants {
     public static final String FACET_SORT = "facet.sort";
     public static final String FACET_PREFIX = "facet.prefix";
     public static final String AUTH_REQUIRED = "authenticate.required";
+
+    public static final String META_LAST_UPDATED_DATE = "meta_last_updated_date";
+    public static final String META_CREATED_DATE = "meta_created_date";
 
 }
